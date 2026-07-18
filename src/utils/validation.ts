@@ -17,3 +17,10 @@ export function assertHttpUrl(value: string, name: string): string {
   }
   return parsed.toString();
 }
+
+export function optionalHttpUrl(value: unknown, name: string): string | undefined {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+  return assertHttpUrl(assertNonEmptyString(value, name), name);
+}

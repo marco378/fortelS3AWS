@@ -1,15 +1,15 @@
 # Fortel ZIP Worker
 
-Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing from SharePoint into S3, built for n8n-triggered automation.
+Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing into S3, built for n8n-triggered automation.
 
 ## Flow
 
-1. n8n receives a SharePoint share link.
+1. n8n resolves the SharePoint link and obtains the Microsoft Graph `downloadUrl`.
 2. n8n `POST`s job metadata to this worker.
-3. The worker resolves the SharePoint share link with Microsoft Graph.
-4. The ZIP is downloaded as a stream and uploaded to `fortel-incoming` with multipart upload.
-5. The ZIP is streamed back from S3 and extracted entry-by-entry into `fortel-extracted`.
-6. The worker posts a completion callback to n8n.
+3. The worker streams the ZIP directly from `downloadUrl` into `fortel-incoming`.
+4. The ZIP is streamed back from S3 and extracted entry-by-entry into `fortel-extracted`.
+5. A manifest is written to `fortel-extracted/{jobId}/manifest.json`.
+6. The worker posts a completion or failure callback to n8n.
 
 ## Stack
 
@@ -17,7 +17,6 @@ Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing fro
 - TypeScript
 - Express
 - AWS SDK v3
-- Microsoft Graph API
 - BullMQ
 - Redis
 - unzipper
@@ -36,10 +35,8 @@ AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 S3_INCOMING_BUCKET=fortel-incoming
 S3_EXTRACTED_BUCKET=fortel-extracted
-GRAPH_CLIENT_ID=...
-GRAPH_CLIENT_SECRET=...
-GRAPH_TENANT_ID=...
 REDIS_URL=redis://localhost:6379
+N8N_CALLBACK_SECRET=...
 ```
 
 ## API
@@ -52,8 +49,9 @@ Request:
 {
   "jobId": "123",
   "projectName": "ABC",
-  "sharepointUrl": "https://...",
-  "callbackUrl": "https://n8n/webhook/job-complete"
+  "downloadUrl": "https://...@microsoft.graph.downloadUrl...",
+  "callbackUrl": "https://n8n/webhook/job-complete",
+  "callbackToken": "optional"
 }
 ```
 
@@ -88,7 +86,7 @@ curl -X POST http://localhost:3000/process \
   -d '{
     "jobId":"123",
     "projectName":"ABC",
-    "sharepointUrl":"https://contoso.sharepoint.com/:u:/r/sites/.../shared%20document.zip",
+    "downloadUrl":"https://...@microsoft.graph.downloadUrl...",
     "callbackUrl":"https://example.n8n.cloud/webhook/job-complete"
   }'
 ```
@@ -108,8 +106,40 @@ The worker sends this JSON when extraction completes:
   "jobId": "123",
   "status": "completed",
   "bucket": "fortel-extracted",
-  "prefix": "ABC/",
-  "fileCount": 87
+  "prefix": "123/",
+  "fileCount": 87,
+  "files": [
+    "Drawings/GA.pdf",
+    "Plans/Basement/slab.pdf"
+  ]
+}
+```
+
+If processing fails, the callback payload is:
+
+```json
+{
+  "jobId": "123",
+  "status": "failed",
+  "error": "Unable to download ZIP"
+}
+```
+
+The manifest is saved to `fortel-extracted/{jobId}/manifest.json` and includes:
+
+```json
+{
+  "jobId": "123",
+  "createdAt": "2026-07-18T08:30:00Z",
+  "zipName": "Saint Gobain.zip",
+  "fileCount": 74,
+  "files": [
+    {
+      "key": "123/Drawings/GA.pdf",
+      "size": 245871,
+      "contentType": "application/pdf"
+    }
+  ]
 }
 ```
 
@@ -127,3 +157,4 @@ The service listens on `PORT` and exposes `/health` for readiness checks.
 - No extracted files are written to local disk.
 - S3 uploads use multipart upload and server-side encryption.
 - File paths inside ZIPs are sanitized to prevent path traversal.
+- The worker never calls Microsoft Graph.

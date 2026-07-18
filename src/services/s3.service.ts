@@ -3,7 +3,14 @@ import { Upload } from "@aws-sdk/lib-storage";
 import { Readable } from "node:stream";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
+import { createByteCountingStream } from "../utils/stream";
 import { contentTypeFromKey } from "../utils/sanitize";
+
+export interface S3UploadResult {
+  key: string;
+  size: number;
+  contentType: string;
+}
 
 export class S3Service {
   private readonly client: S3Client;
@@ -23,15 +30,23 @@ export class S3Service {
     key: string;
     body: Readable;
     contentType?: string;
-  }): Promise<void> {
+    recordSize?: boolean;
+  }): Promise<S3UploadResult> {
     logger.info({ bucket: params.bucket, key: params.key }, "Uploading stream to S3");
+
+    let size = 0;
+    const body = params.recordSize
+      ? params.body.pipe(createByteCountingStream((chunkSize) => {
+          size += chunkSize;
+        }))
+      : params.body;
 
     const upload = new Upload({
       client: this.client,
       params: {
         Bucket: params.bucket,
         Key: params.key,
-        Body: params.body,
+        Body: body,
         ContentType: params.contentType ?? contentTypeFromKey(params.key),
         ServerSideEncryption: "AES256"
       },
@@ -41,6 +56,11 @@ export class S3Service {
     });
 
     await upload.done();
+    return {
+      key: params.key,
+      size,
+      contentType: params.contentType ?? contentTypeFromKey(params.key)
+    };
   }
 
   async getObjectStream(bucket: string, key: string): Promise<Readable> {

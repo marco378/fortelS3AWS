@@ -15,11 +15,11 @@ export function createApp(queueService: QueueService): express.Express {
   app.use(createHealthRouter());
   app.use(createProcessRouter(controller));
 
-  app.use(errorMiddleware);
-
   app.use((_req, res) => {
     res.status(404).json({ status: "error", message: "Not found" });
   });
+
+  app.use(errorMiddleware);
 
   return app;
 }

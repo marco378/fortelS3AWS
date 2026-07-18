@@ -30,8 +30,6 @@ export const env = {
   awsSecretAccessKey: required("AWS_SECRET_ACCESS_KEY"),
   s3IncomingBucket: required("S3_INCOMING_BUCKET"),
   s3ExtractedBucket: required("S3_EXTRACTED_BUCKET"),
-  graphClientId: required("GRAPH_CLIENT_ID"),
-  graphClientSecret: required("GRAPH_CLIENT_SECRET"),
-  graphTenantId: required("GRAPH_TENANT_ID"),
-  redisUrl: required("REDIS_URL")
+  redisUrl: required("REDIS_URL"),
+  n8nCallbackSecret: required("N8N_CALLBACK_SECRET")
 } as const;

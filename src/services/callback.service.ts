@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
+import { env } from "../config/env";
 import { logger } from "../config/logger";
-import { ProcessJobResult } from "../types/jobs";
 
 export class CallbackService {
   private readonly http: AxiosInstance;
@@ -13,7 +13,11 @@ export class CallbackService {
     });
   }
 
-  async sendCallback(callbackUrl: string, payload: ProcessJobResult): Promise<void> {
+  async sendCallback(
+    callbackUrl: string,
+    payload: unknown,
+    callbackToken?: string
+  ): Promise<void> {
     const attempts = 3;
     let lastError: unknown;
 
@@ -22,7 +26,9 @@ export class CallbackService {
         logger.info({ callbackUrl, attempt }, "Sending completion callback");
         await this.http.post(callbackUrl, payload, {
           headers: {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "X-N8N-Callback-Secret": env.n8nCallbackSecret,
+            ...(callbackToken ? { "X-N8N-Callback-Token": callbackToken } : {})
           }
         });
         return;

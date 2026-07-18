@@ -3,6 +3,7 @@ import unzipper from "unzipper";
 import { logger } from "../config/logger";
 import { joinS3Key, resolveSafeZipEntryPath } from "../utils/sanitize";
 import { S3Service } from "./s3.service";
+import { ExtractionResult, UploadedFileRecord } from "../types/jobs";
 
 interface ZipEntryLike extends Readable {
   path: string;
@@ -18,9 +19,9 @@ export class ZipService {
     extractedBucket: string;
     extractedPrefix: string;
     jobId: string;
-  }): Promise<number> {
+  }): Promise<ExtractionResult> {
     const archive = params.zipStream.pipe(unzipper.Parse({ forceStream: true }));
-    let fileCount = 0;
+    const files: UploadedFileRecord[] = [];
 
     for await (const rawEntry of archive as AsyncIterable<ZipEntryLike>) {
       const entry = rawEntry;
@@ -40,15 +41,24 @@ export class ZipService {
       const key = joinS3Key(params.extractedPrefix, safePath);
       logger.info({ jobId: params.jobId, key }, "Uploading extracted entry");
 
-      await this.s3.uploadStream({
+      const uploaded = await this.s3.uploadStream({
         bucket: params.extractedBucket,
         key,
-        body: entry
+        body: entry,
+        recordSize: true
       });
 
-      fileCount += 1;
+      files.push({
+        key: uploaded.key,
+        relativePath: safePath,
+        size: uploaded.size,
+        contentType: uploaded.contentType
+      });
     }
 
-    return fileCount;
+    return {
+      fileCount: files.length,
+      files
+    };
   }
 }
