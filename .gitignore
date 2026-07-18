@@ -5,3 +5,4 @@ dist
 coverage
 *.log
 test-s3.ts
+.env.example
