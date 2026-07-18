@@ -1,0 +1,33 @@
+{
+  "name": "fortel-zip-worker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready streaming ZIP processing worker for n8n and SharePoint",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "lint": "tsc -p tsconfig.json --noEmit"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1090.0",
+    "@aws-sdk/lib-storage": "^3.872.0",
+    "axios": "^1.11.0",
+    "bullmq": "^5.58.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.1.0",
+    "ioredis": "^5.7.0",
+    "pino": "^9.8.0",
+    "unzipper": "^0.12.3"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.1.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  }
+}
