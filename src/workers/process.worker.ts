@@ -11,6 +11,7 @@ import {
   ProcessJobResult
 } from "../types/jobs";
 import { CallbackService } from "../services/callback.service";
+import { GraphService } from "../services/graph.service";
 import { S3Service } from "../services/s3.service";
 import { ZipService } from "../services/zip.service";
 import { joinS3Key } from "../utils/sanitize";
@@ -32,6 +33,7 @@ function toFailureMessage(error: unknown): string {
 
 export class ProcessWorker {
   constructor(
+    private readonly graphService: GraphService,
     private readonly s3Service: S3Service,
     private readonly zipService: ZipService,
     private readonly callbackService: CallbackService
@@ -108,6 +110,12 @@ export class ProcessWorker {
         { fileCount: extraction.fileCount, prefix: extractedPrefix, manifestKey },
         "Extraction completed"
       );
+
+      await this.uploadToSharePoint({
+        jobId: data.jobId,
+        files: extraction.files
+      });
+
       if (data.callbackUrl) {
         try {
           await this.callbackService.sendCallback(data.callbackUrl, result, data.callbackToken);
@@ -155,5 +163,25 @@ export class ProcessWorker {
     }
 
     return response.data as Readable;
+  }
+
+  private async uploadToSharePoint(params: {
+    jobId: string;
+    files: { key: string; relativePath: string; size: number; contentType: string }[];
+  }): Promise<void> {
+    const targetRoot = joinS3Key(env.graphTargetFolder, params.jobId);
+    logger.info({ jobId: params.jobId, targetRoot }, "Uploading extracted files to SharePoint");
+
+    await this.graphService.ensureFolderPath(targetRoot);
+
+    for (const file of params.files) {
+      const s3Stream = await this.s3Service.getObjectStream(env.s3ExtractedBucket, file.key);
+      await this.graphService.uploadFileToDrive({
+        relativePath: joinS3Key(params.jobId, file.relativePath),
+        body: s3Stream,
+        size: file.size,
+        contentType: file.contentType
+      });
+    }
   }
 }

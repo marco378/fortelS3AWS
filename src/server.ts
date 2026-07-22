@@ -3,6 +3,7 @@ import { env } from "./config/env";
 import { logger } from "./config/logger";
 import { createApp } from "./app";
 import { QueueService } from "./services/queue.service";
+import { GraphService } from "./services/graph.service";
 import { S3Service } from "./services/s3.service";
 import { ZipService } from "./services/zip.service";
 import { CallbackService } from "./services/callback.service";
@@ -10,10 +11,11 @@ import { ProcessWorker } from "./workers/process.worker";
 
 async function main(): Promise<void> {
   const queueService = new QueueService();
+  const graphService = new GraphService();
   const s3Service = new S3Service();
   const zipService = new ZipService(s3Service);
   const callbackService = new CallbackService();
-  const processWorker = new ProcessWorker(s3Service, zipService, callbackService);
+  const processWorker = new ProcessWorker(graphService, s3Service, zipService, callbackService);
 
   const worker = queueService.createWorker((job) => processWorker.handle(job));
   const app = createApp(queueService);

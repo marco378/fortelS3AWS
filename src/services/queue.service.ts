@@ -23,6 +23,7 @@ export class QueueService {
   }
 
   async enqueue(job: ProcessJobData): Promise<string> {
+    logger.info({ jobId: job.jobId }, "Enqueuing job");
     const options: JobsOptions = {
       jobId: job.jobId,
       attempts: 5,
@@ -40,6 +41,7 @@ export class QueueService {
     };
 
     const queued = await this.queue.add("process", job, options);
+    logger.info({ jobId: queued.id ?? job.jobId }, "Job enqueued");
     return queued.id ?? job.jobId;
   }
 
@@ -56,6 +58,14 @@ export class QueueService {
 
     const worker = new Worker<ProcessJobData>(PROCESS_QUEUE_NAME, processor, options);
 
+    worker.on("ready", () => {
+      logger.info({ queue: PROCESS_QUEUE_NAME }, "BullMQ worker ready");
+    });
+
+    worker.on("active", (job) => {
+      logger.info({ jobId: job.id }, "BullMQ job active");
+    });
+
     worker.on("completed", (job) => {
       logger.info({ jobId: job.id }, "BullMQ job completed");
     });
@@ -65,6 +75,14 @@ export class QueueService {
         { jobId: job?.id, attemptsMade: job?.attemptsMade, error },
         "BullMQ job failed"
       );
+    });
+
+    worker.on("stalled", (jobId) => {
+      logger.warn({ jobId }, "BullMQ job stalled");
+    });
+
+    worker.on("error", (error) => {
+      logger.error({ error }, "BullMQ worker error");
     });
 
     return worker;

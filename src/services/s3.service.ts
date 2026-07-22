@@ -91,4 +91,21 @@ export class S3Service {
       return false;
     }
   }
+
+  async getObjectMetadata(
+    bucket: string,
+    key: string
+  ): Promise<{ size: number; contentType: string }> {
+    const response = await this.client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: key
+      })
+    );
+
+    return {
+      size: Number(response.ContentLength ?? 0),
+      contentType: response.ContentType ?? contentTypeFromKey(key)
+    };
+  }
 }

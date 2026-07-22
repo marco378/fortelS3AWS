@@ -1,6 +1,6 @@
 # Fortel ZIP Worker
 
-Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing into S3, built for n8n-triggered automation.
+Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing, built for n8n-triggered automation.
 
 ## Flow
 
@@ -8,8 +8,9 @@ Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing int
 2. n8n `POST`s job metadata to this worker.
 3. The worker streams the ZIP directly from `downloadUrl` into `fortel-incoming`.
 4. The ZIP is streamed back from S3 and extracted entry-by-entry into `fortel-extracted`.
-5. A manifest is written to `fortel-extracted/{jobId}/manifest.json`.
-6. The worker posts a completion or failure callback to n8n.
+5. The worker uploads each extracted file back into SharePoint using Microsoft Graph.
+6. A manifest is written to `fortel-extracted/{jobId}/manifest.json`.
+7. The worker posts a completion or failure callback to n8n.
 
 ## Stack
 
@@ -19,6 +20,7 @@ Production-ready Node.js 22 + TypeScript worker for streaming ZIP processing int
 - AWS SDK v3
 - BullMQ
 - Redis
+- Microsoft Graph
 - unzipper
 - Axios
 - Pino
@@ -35,6 +37,11 @@ AWS_ACCESS_KEY_ID=...
 AWS_SECRET_ACCESS_KEY=...
 S3_INCOMING_BUCKET=fortel-incoming
 S3_EXTRACTED_BUCKET=fortel-extracted
+GRAPH_CLIENT_ID=...
+GRAPH_CLIENT_SECRET=...
+GRAPH_TENANT_ID=...
+GRAPH_DRIVE_ID=...
+GRAPH_TARGET_FOLDER=Fortel-Extracted
 REDIS_URL=redis://localhost:6379
 N8N_CALLBACK_SECRET=...
 ```
@@ -156,5 +163,5 @@ The service listens on `PORT` and exposes `/health` for readiness checks.
 - ZIPs are processed without loading the full archive into memory.
 - No extracted files are written to local disk.
 - S3 uploads use multipart upload and server-side encryption.
+- SharePoint uploads use Microsoft Graph and are streamed in chunks.
 - File paths inside ZIPs are sanitized to prevent path traversal.
-- The worker never calls Microsoft Graph.

@@ -22,6 +22,7 @@
     "express": "^5.1.0",
     "ioredis": "^5.7.0",
     "pino": "^9.8.0",
+    "redis": "^6.1.0",
     "unzipper": "^0.12.3"
   },
   "devDependencies": {
